@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar Monitor — Dashboard en Tiempo Real</title>
+  <meta name="description" content="Panel de administración en tiempo real para sistema fotovoltaico ESP32. Monitoreo de voltaje, corriente, potencia y energía." />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header__brand">
+      <span class="header__icon">⚡</span>
+      <div>
+        <h1 class="header__title">Solar Monitor</h1>
+        <p class="header__subtitle">Sistema Fotovoltaico ESP32</p>
+      </div>
+    </div>
+
+    <div class="header__status">
+      <!-- Estado de conexión WebSocket -->
+      <div class="status-badge" id="ws-status">
+        <span class="status-badge__dot" id="ws-dot"></span>
+        <span class="status-badge__label" id="ws-label">Conectando…</span>
+      </div>
+
+      <!-- Último dispositivo activo -->
+      <div class="status-badge status-badge--secondary">
+        <span class="status-badge__dot status-badge__dot--blue"></span>
+        <span class="status-badge__label" id="device-label">Sin dispositivo</span>
+      </div>
+
+      <!-- Botón descarga CSV -->
+      <a href="/api/export/csv" class="btn btn--download" id="btn-csv" title="Descargar todos los datos como CSV">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Descargar CSV
+      </a>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAIN CONTENT
+  ══════════════════════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Última actualización -->
+    <p class="last-update">Última actualización: <span id="last-ts">—</span></p>
+
+    <!-- ─── SENSOR 1 ─── -->
+    <section class="sensor-section">
+      <div class="sensor-section__header">
+        <span class="sensor-section__badge sensor-section__badge--1">SENSOR 1</span>
+        <h2 class="sensor-section__title">Panel Principal</h2>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card" id="s1-voltage-card">
+          <div class="metric-card__icon metric-card__icon--voltage">V</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Voltaje</span>
+            <span class="metric-card__value" id="s1-voltage">—</span>
+            <span class="metric-card__unit">V</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s1-current-card">
+          <div class="metric-card__icon metric-card__icon--current">A</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Corriente</span>
+            <span class="metric-card__value" id="s1-current">—</span>
+            <span class="metric-card__unit">A</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s1-power-card">
+          <div class="metric-card__icon metric-card__icon--power">W</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Potencia</span>
+            <span class="metric-card__value" id="s1-power">—</span>
+            <span class="metric-card__unit">W</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s1-energy-card">
+          <div class="metric-card__icon metric-card__icon--energy">E</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Energía</span>
+            <span class="metric-card__value" id="s1-energy">—</span>
+            <span class="metric-card__unit">Wh</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SENSOR 2 ─── -->
+    <section class="sensor-section">
+      <div class="sensor-section__header">
+        <span class="sensor-section__badge sensor-section__badge--2">SENSOR 2</span>
+        <h2 class="sensor-section__title">Panel Secundario</h2>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card" id="s2-voltage-card">
+          <div class="metric-card__icon metric-card__icon--voltage2">V</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Voltaje</span>
+            <span class="metric-card__value" id="s2-voltage">—</span>
+            <span class="metric-card__unit">V</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s2-current-card">
+          <div class="metric-card__icon metric-card__icon--current2">A</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Corriente</span>
+            <span class="metric-card__value" id="s2-current">—</span>
+            <span class="metric-card__unit">A</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s2-power-card">
+          <div class="metric-card__icon metric-card__icon--power2">W</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Potencia</span>
+            <span class="metric-card__value" id="s2-power">—</span>
+            <span class="metric-card__unit">W</span>
+          </div>
+        </div>
+        <div class="metric-card" id="s2-energy-card">
+          <div class="metric-card__icon metric-card__icon--energy2">E</div>
+          <div class="metric-card__body">
+            <span class="metric-card__label">Energía</span>
+            <span class="metric-card__value" id="s2-energy">—</span>
+            <span class="metric-card__unit">Wh</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── GRÁFICAS ─── -->
+    <section class="charts-section">
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <span class="chart-card__title">Voltaje en el Tiempo</span>
+          <span class="chart-card__legend">
+            <span class="legend-dot legend-dot--s1"></span>Sensor 1
+            <span class="legend-dot legend-dot--s2"></span>Sensor 2
+          </span>
+        </div>
+        <div class="chart-card__body">
+          <canvas id="chart-voltage" aria-label="Gráfico de voltaje en el tiempo"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <span class="chart-card__title">Corriente en el Tiempo</span>
+          <span class="chart-card__legend">
+            <span class="legend-dot legend-dot--s1"></span>Sensor 1
+            <span class="legend-dot legend-dot--s2"></span>Sensor 2
+          </span>
+        </div>
+        <div class="chart-card__body">
+          <canvas id="chart-current" aria-label="Gráfico de corriente en el tiempo"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card chart-card--full">
+        <div class="chart-card__header">
+          <span class="chart-card__title">Potencia Total (W)</span>
+          <span class="chart-card__legend">
+            <span class="legend-dot legend-dot--s1"></span>Sensor 1
+            <span class="legend-dot legend-dot--s2"></span>Sensor 2
+          </span>
+        </div>
+        <div class="chart-card__body">
+          <canvas id="chart-power" aria-label="Gráfico de potencia en el tiempo"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── HISTORIAL ─── -->
+    <section class="history-section">
+      <div class="history-header">
+        <h2 class="history-title">Historial de Lecturas Recientes</h2>
+        <span class="history-count" id="history-count">0 registros</span>
+      </div>
+      <div class="table-wrapper">
+        <table class="readings-table" id="readings-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Dispositivo</th>
+              <th>Sensor</th>
+              <th>Voltaje (V)</th>
+              <th>Corriente (A)</th>
+              <th>Potencia (W)</th>
+              <th>Energía (Wh)</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr class="table-empty">
+              <td colspan="7">Esperando datos del ESP32…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <span>Solar Monitor Dashboard — Node.js + WebSockets + SQLite</span>
+  </footer>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

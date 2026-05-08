@@ -1,0 +1,13 @@
+{
+  "name": "esp32-simulator",
+  "version": "1.0.0",
+  "description": "Simulador independiente de dispositivo ESP32 para el sistema fotovoltaico.",
+  "main": "simulate.js",
+  "scripts": {
+    "start": "node simulate.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.16.0"
+  }
+}
