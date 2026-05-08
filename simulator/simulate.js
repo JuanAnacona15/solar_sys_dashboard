@@ -33,7 +33,8 @@ const WebSocket = require('ws');
 // Configuración
 // ─────────────────────────────────────────────────────────────────
 
-const WS_URL      = process.env.WS_URL    || 'ws://localhost:3000';
+const SERVER_IP   = process.env.SERVER_IP || 'localhost';
+const WS_URL      = process.env.WS_URL    || `ws://${SERVER_IP}:3000`;
 const WS_TOKEN    = process.env.WS_TOKEN  || 'solar_token_secret_2024';
 const DEVICE_ID   = process.env.DEVICE_ID || 'esp32_01';
 const INTERVAL_MS = 1000;       // Enviar datos cada 1 segundo
