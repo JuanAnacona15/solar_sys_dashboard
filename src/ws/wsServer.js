@@ -98,6 +98,7 @@ function createWsServer(httpServer) {
     const clientIp = request.socket.remoteAddress;
     const authHeader = request.headers['authorization'];
 
+
     ws.isAuthenticated = false;
     ws.isDashboard = true;
 
