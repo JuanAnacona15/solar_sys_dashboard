@@ -149,7 +149,11 @@ function createWsServer(httpServer) {
       let payload;
 
       try {
-        payload = JSON.parse(raw.toString());
+        const cleaned = raw
+          .toString()
+          .replace(/\bnan\b/gi, '0');
+
+        payload = JSON.parse(cleaned);
         // Log para ver qué está mandando exactamente si no está autenticado
         if (!ws.isAuthenticated) {
           console.log(`📩 Mensaje recibido de cliente no autenticado [${clientIp}]:`, JSON.stringify(payload));
