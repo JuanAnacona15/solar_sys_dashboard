@@ -24,11 +24,11 @@
  */
 
 const WebSocket = require('ws');
-const url       = require('url');
+const url = require('url');
 const { insertReading } = require('../db/database');
 
 /** Clientes ESP32 autenticados */
-const deviceClients    = new Set();
+const deviceClients = new Set();
 /** Clientes dashboard (browsers) */
 const dashboardClients = new Set();
 
@@ -92,18 +92,24 @@ function broadcastToDashboards(data) {
  */
 function createWsServer(httpServer) {
   const TOKEN = process.env.WS_TOKEN || 'solar_token_secret_2024';
-  const wss   = new WebSocket.Server({ server: httpServer });
+  const wss = new WebSocket.Server({ server: httpServer });
 
   wss.on('connection', (ws, request) => {
     const { query } = url.parse(request.url, true);
-    const clientIp  = request.socket.remoteAddress;
-    const clientToken = query.token;
+    const clientIp = request.socket.remoteAddress;
+    const authHeader = request.headers['authorization'];
+
+    let clientToken = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      clientToken = authHeader.split(' ')[1];
+    }
 
     // ── Dispositivo ESP32 (tiene token) ───────────────────────
     if (clientToken) {
       if (clientToken !== TOKEN) {
         console.warn(`🚫  Dispositivo rechazado [${clientIp}] — token inválido`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Token inválido' }));
+        ws.send(JSON.stringify({ type: 'error', message: 'Token inválido', status: 'ok' }));
         ws.close(1008, 'Token inválido');
         return;
       }
@@ -139,13 +145,13 @@ function createWsServer(httpServer) {
         try {
           for (const sensorKey of ['sensor1', 'sensor2']) {
             insertReading({
-              device_id:   payload.device_id,
-              timestamp:   deviceTs,
+              device_id: payload.device_id,
+              timestamp: deviceTs,
               sensor_name: sensorKey,
-              voltage:     payload[sensorKey].voltage,
-              current:     payload[sensorKey].current,
-              power:       payload[sensorKey].power,
-              energy:      payload[sensorKey].energy,
+              voltage: payload[sensorKey].voltage,
+              current: payload[sensorKey].current,
+              power: payload[sensorKey].power,
+              energy: payload[sensorKey].energy,
             });
           }
         } catch (dbErr) {
@@ -156,12 +162,12 @@ function createWsServer(httpServer) {
 
         // 5. Broadcast al dashboard
         const event = {
-          type:             'reading',
-          device_id:        payload.device_id,
-          timestamp:        deviceTs,
+          type: 'reading',
+          device_id: payload.device_id,
+          timestamp: deviceTs,
           server_timestamp: serverTs,
-          sensor1:          payload.sensor1,
-          sensor2:          payload.sensor2,
+          sensor1: payload.sensor1,
+          sensor2: payload.sensor2,
         };
         broadcastToDashboards(event);
 
@@ -174,7 +180,7 @@ function createWsServer(httpServer) {
         console.log(`🔌  ESP32 desconectado | dispositivos: ${deviceClients.size}`);
       });
 
-    // ── Dashboard / Browser (sin token) ──────────────────────
+      // ── Dashboard / Browser (sin token) ──────────────────────
     } else {
       dashboardClients.add(ws);
       console.log(`🖥️   Dashboard conectado [${clientIp}] | dashboards: ${dashboardClients.size}`);
