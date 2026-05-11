@@ -102,6 +102,13 @@ function createWsServer(httpServer) {
     ws.isAuthenticated = false;
     ws.isDashboard = true;
 
+    console.log(`🔌 Nueva conexión desde [${clientIp}]`);
+    if (authHeader) {
+      console.log(`🔑 Header Authorization detectado: "${authHeader.substring(0, 15)}..."`);
+    } else {
+      console.log(`ℹ️  Sin header Authorization en la conexión inicial.`);
+    }
+
     // ── Intentar auth por header ─────────────────────
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
@@ -111,12 +118,14 @@ function createWsServer(httpServer) {
         ws.isDashboard = false;
         deviceClients.add(ws);
 
-        console.log(`📡  ESP32 autenticado por header [${clientIp}] | dispositivos: ${deviceClients.size}`);
+        console.log(`✅ ESP32 autenticado por header [${clientIp}]`);
 
         ws.send(JSON.stringify({
           type: 'auth',
           status: 'authenticated'
         }));
+      } else {
+        console.warn(`❌ Token en header inválido desde [${clientIp}]`);
       }
     }
 
@@ -141,7 +150,12 @@ function createWsServer(httpServer) {
 
       try {
         payload = JSON.parse(raw.toString());
+        // Log para ver qué está mandando exactamente si no está autenticado
+        if (!ws.isAuthenticated) {
+          console.log(`📩 Mensaje recibido de cliente no autenticado [${clientIp}]:`, JSON.stringify(payload));
+        }
       } catch {
+        console.error(`⚠️ Error al parsear JSON desde [${clientIp}]:`, raw.toString());
         ws.send(JSON.stringify({ type: 'error', message: 'JSON inválido' }));
         return;
       }
@@ -155,7 +169,7 @@ function createWsServer(httpServer) {
           dashboardClients.delete(ws);
           deviceClients.add(ws);
 
-          console.log(`📡  ESP32 autenticado por mensaje [${clientIp}] | dispositivos: ${deviceClients.size}`);
+          console.log(`✅ ESP32 autenticado por mensaje JSON [${clientIp}]`);
 
           ws.send(JSON.stringify({
             type: 'auth',
@@ -163,6 +177,8 @@ function createWsServer(httpServer) {
           }));
         }
         return;
+      } else if (payload.type === 'auth') {
+        console.warn(`❌ Intento de auth fallido (token incorrecto) desde [${clientIp}]`);
       }
 
       // ── BLOQUEAR DATOS SI NO ESTÁ AUTENTICADO ───────
