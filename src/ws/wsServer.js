@@ -95,102 +95,136 @@ function createWsServer(httpServer) {
   const wss = new WebSocket.Server({ server: httpServer });
 
   wss.on('connection', (ws, request) => {
-    const { query } = url.parse(request.url, true);
     const clientIp = request.socket.remoteAddress;
     const authHeader = request.headers['authorization'];
 
-    let clientToken = null;
+    ws.isAuthenticated = false;
+    ws.isDashboard = true;
 
+    // ── Intentar auth por header ─────────────────────
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      clientToken = authHeader.split(' ')[1];
+      const token = authHeader.split(' ')[1];
+
+      if (token === TOKEN) {
+        ws.isAuthenticated = true;
+        ws.isDashboard = false;
+        deviceClients.add(ws);
+
+        console.log(`📡  ESP32 autenticado por header [${clientIp}] | dispositivos: ${deviceClients.size}`);
+
+        ws.send(JSON.stringify({
+          type: 'auth',
+          status: 'authenticated'
+        }));
+      }
     }
 
-    // ── Dispositivo ESP32 (tiene token) ───────────────────────
-    if (clientToken) {
-      if (clientToken !== TOKEN) {
-        console.warn(`🚫  Dispositivo rechazado [${clientIp}] — token inválido`);
-        ws.send(JSON.stringify({ type: 'error', message: 'Token inválido', status: 'ok' }));
-        ws.close(1008, 'Token inválido');
+    // ── Si no se autenticó, asumir dashboard temporalmente ──
+    if (!ws.isAuthenticated) {
+      dashboardClients.add(ws);
+
+      console.log(`🖥️   Dashboard conectado [${clientIp}] | dashboards: ${dashboardClients.size}`);
+
+      ws.send(JSON.stringify({
+        type: 'connected',
+        message: 'Conectado al servidor solar'
+      }));
+    }
+
+    // ─────────────────────────────────────────────────
+    // MENSAJES
+    // ─────────────────────────────────────────────────
+
+    ws.on('message', (raw) => {
+      let payload;
+
+      try {
+        payload = JSON.parse(raw.toString());
+      } catch {
+        ws.send(JSON.stringify({ type: 'error', message: 'JSON inválido' }));
         return;
       }
 
-      deviceClients.add(ws);
-      console.log(`📡  ESP32 conectado [${clientIp}] | dispositivos: ${deviceClients.size}`);
-      ws.send(JSON.stringify({ type: 'auth', status: 'ok' }));
+      // ── AUTH POR MENSAJE (ESP32 actual) ─────────────
+      if (payload.type === 'auth' && payload.token === TOKEN) {
+        if (!ws.isAuthenticated) {
+          ws.isAuthenticated = true;
+          ws.isDashboard = false;
 
-      // Manejo de mensajes del ESP32
-      ws.on('message', (raw) => {
-        let payload;
+          dashboardClients.delete(ws);
+          deviceClients.add(ws);
 
-        // 1. Parsear JSON
-        try {
-          payload = JSON.parse(raw.toString());
-        } catch {
-          ws.send(JSON.stringify({ type: 'error', message: 'JSON inválido' }));
-          return;
+          console.log(`📡  ESP32 autenticado por mensaje [${clientIp}] | dispositivos: ${deviceClients.size}`);
+
+          ws.send(JSON.stringify({
+            type: 'auth',
+            status: 'authenticated'
+          }));
         }
+        return;
+      }
 
-        // 2. Validar schema
-        const { valid, error } = validatePayload(payload);
-        if (!valid) {
-          ws.send(JSON.stringify({ type: 'error', message: error }));
-          return;
+      // ── BLOQUEAR DATOS SI NO ESTÁ AUTENTICADO ───────
+      if (!ws.isAuthenticated) {
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'No autenticado para enviar datos'
+        }));
+        return;
+      }
+
+      // ── VALIDAR LECTURAS ────────────────────────────
+      const { valid, error } = validatePayload(payload);
+      if (!valid) {
+        ws.send(JSON.stringify({ type: 'error', message: error }));
+        return;
+      }
+
+      // ── PROCESAR DATOS (Timestamps, DB, Broadcast) ──
+      const serverTs = new Date().toISOString();
+      const deviceTs = payload.timestamp || serverTs;
+
+      try {
+        for (const sensorKey of ['sensor1', 'sensor2']) {
+          insertReading({
+            device_id: payload.device_id,
+            timestamp: deviceTs,
+            sensor_name: sensorKey,
+            voltage: payload[sensorKey].voltage,
+            current: payload[sensorKey].current,
+            power: payload[sensorKey].power,
+            energy: payload[sensorKey].energy,
+          });
         }
+      } catch (dbErr) {
+        console.error('❌  Error DB:', dbErr.message);
+        ws.send(JSON.stringify({ type: 'error', message: 'Error al guardar datos' }));
+        return;
+      }
 
-        // 3. Timestamps
-        const serverTs = new Date().toISOString();
-        const deviceTs = payload.timestamp || serverTs;
+      const event = {
+        type: 'reading',
+        device_id: payload.device_id,
+        timestamp: deviceTs,
+        server_timestamp: serverTs,
+        sensor1: payload.sensor1,
+        sensor2: payload.sensor2,
+      };
+      broadcastToDashboards(event);
 
-        // 4. Guardar en SQLite (2 filas: sensor1 + sensor2)
-        try {
-          for (const sensorKey of ['sensor1', 'sensor2']) {
-            insertReading({
-              device_id: payload.device_id,
-              timestamp: deviceTs,
-              sensor_name: sensorKey,
-              voltage: payload[sensorKey].voltage,
-              current: payload[sensorKey].current,
-              power: payload[sensorKey].power,
-              energy: payload[sensorKey].energy,
-            });
-          }
-        } catch (dbErr) {
-          console.error('❌  Error DB:', dbErr.message);
-          ws.send(JSON.stringify({ type: 'error', message: 'Error al guardar datos' }));
-          return;
-        }
+      console.log(`📊  [${payload.device_id}] datos guardados | dashboards: ${dashboardClients.size}`);
+      ws.send(JSON.stringify({ type: 'ack', server_timestamp: serverTs }));
+    });
 
-        // 5. Broadcast al dashboard
-        const event = {
-          type: 'reading',
-          device_id: payload.device_id,
-          timestamp: deviceTs,
-          server_timestamp: serverTs,
-          sensor1: payload.sensor1,
-          sensor2: payload.sensor2,
-        };
-        broadcastToDashboards(event);
-
-        console.log(`📊  [${payload.device_id}] datos guardados | dashboards: ${dashboardClients.size}`);
-        ws.send(JSON.stringify({ type: 'ack', server_timestamp: serverTs }));
-      });
-
-      ws.on('close', () => {
+    ws.on('close', () => {
+      if (ws.isAuthenticated) {
         deviceClients.delete(ws);
         console.log(`🔌  ESP32 desconectado | dispositivos: ${deviceClients.size}`);
-      });
-
-      // ── Dashboard / Browser (sin token) ──────────────────────
-    } else {
-      dashboardClients.add(ws);
-      console.log(`🖥️   Dashboard conectado [${clientIp}] | dashboards: ${dashboardClients.size}`);
-      ws.send(JSON.stringify({ type: 'connected', message: 'Conectado al servidor solar' }));
-
-      ws.on('close', () => {
+      } else {
         dashboardClients.delete(ws);
         console.log(`🖥️   Dashboard desconectado | dashboards: ${dashboardClients.size}`);
-      });
-    }
+      }
+    });
 
     ws.on('error', (err) => console.error(`⚠️   WS error: ${err.message}`));
   });
