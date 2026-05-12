@@ -113,7 +113,7 @@ function makeChartOptions(yLabel) {
         bodyColor: '#f0f6ff',
         padding: 10,
         callbacks: {
-          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${yLabel}`,
+          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y} ${yLabel}`,
         },
       },
     },
@@ -327,10 +327,10 @@ function addTableRow({ timestamp, device_id, sensor_name, voltage, current, powe
     <td>${new Date(timestamp).toLocaleString('es-ES')}</td>
     <td>${device_id}</td>
     <td><span class="sensor-tag sensor-tag--${sensorNum}">${sensor_name.toUpperCase()}</span></td>
-    <td>${Number(voltage).toFixed(2)}</td>
-    <td>${Number(current).toFixed(2)}</td>
-    <td>${Number(power).toFixed(2)}</td>
-    <td>${Number(energy).toFixed(2)}</td>
+    <td>${Number(voltage)}</td>
+    <td>${Number(current)}</td>
+    <td>${Number(power)}</td>
+    <td>${Number(energy)}</td>
   `;
 
   DOM.tableBody.prepend(tr);
