@@ -35,13 +35,13 @@ const WS_RECONNECT_MS = 3000;
  * Se usa para alimentar los datasets de Chart.js.
  */
 const chartData = {
-  labels:     [],   // timestamps formateados (eje X compartido)
+  labels: [],   // timestamps formateados (eje X compartido)
   s1_voltage: [],
   s1_current: [],
-  s1_power:   [],
+  s1_power: [],
   s2_voltage: [],
   s2_current: [],
-  s2_power:   [],
+  s2_power: [],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -49,38 +49,38 @@ const chartData = {
 // ─────────────────────────────────────────────────────────────────
 
 const DOM = {
-  wsStatus:   document.getElementById('ws-status'),
-  wsDot:      document.getElementById('ws-dot'),
-  wsLabel:    document.getElementById('ws-label'),
-  deviceLabel:document.getElementById('device-label'),
-  lastTs:     document.getElementById('last-ts'),
+  wsStatus: document.getElementById('ws-status'),
+  wsDot: document.getElementById('ws-dot'),
+  wsLabel: document.getElementById('ws-label'),
+  deviceLabel: document.getElementById('device-label'),
+  lastTs: document.getElementById('last-ts'),
 
   s1: {
     voltage: document.getElementById('s1-voltage'),
     current: document.getElementById('s1-current'),
-    power:   document.getElementById('s1-power'),
-    energy:  document.getElementById('s1-energy'),
+    power: document.getElementById('s1-power'),
+    energy: document.getElementById('s1-energy'),
     cards: {
       voltage: document.getElementById('s1-voltage-card'),
       current: document.getElementById('s1-current-card'),
-      power:   document.getElementById('s1-power-card'),
-      energy:  document.getElementById('s1-energy-card'),
+      power: document.getElementById('s1-power-card'),
+      energy: document.getElementById('s1-energy-card'),
     },
   },
   s2: {
     voltage: document.getElementById('s2-voltage'),
     current: document.getElementById('s2-current'),
-    power:   document.getElementById('s2-power'),
-    energy:  document.getElementById('s2-energy'),
+    power: document.getElementById('s2-power'),
+    energy: document.getElementById('s2-energy'),
     cards: {
       voltage: document.getElementById('s2-voltage-card'),
       current: document.getElementById('s2-current-card'),
-      power:   document.getElementById('s2-power-card'),
-      energy:  document.getElementById('s2-energy-card'),
+      power: document.getElementById('s2-power-card'),
+      energy: document.getElementById('s2-energy-card'),
     },
   },
 
-  tableBody:    document.getElementById('table-body'),
+  tableBody: document.getElementById('table-body'),
   historyCount: document.getElementById('history-count'),
 };
 
@@ -133,7 +133,7 @@ function makeChartOptions(yLabel) {
           font: { size: 10, family: 'Inter' },
           callback: (v) => v.toFixed(1),
         },
-        grid:  { color: 'rgba(255,255,255,0.06)' },
+        grid: { color: 'rgba(255,255,255,0.06)' },
         title: { display: true, text: yLabel, color: '#4a5f80', font: { size: 10 } },
       },
     },
@@ -153,7 +153,7 @@ function makeDataset(label, data, color) {
   return {
     label,
     data,
-    borderColor:     color,
+    borderColor: color,
     backgroundColor: color + '18',
     borderWidth: 2,
     pointRadius: 2.5,
@@ -168,7 +168,7 @@ function makeDataset(label, data, color) {
 const chartVoltage = new Chart(document.getElementById('chart-voltage'), {
   type: 'line',
   data: {
-    labels:   chartData.labels,
+    labels: chartData.labels,
     datasets: [
       makeDataset('Sensor 1', chartData.s1_voltage, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_voltage, COLOR_S2),
@@ -180,7 +180,7 @@ const chartVoltage = new Chart(document.getElementById('chart-voltage'), {
 const chartCurrent = new Chart(document.getElementById('chart-current'), {
   type: 'line',
   data: {
-    labels:   chartData.labels,
+    labels: chartData.labels,
     datasets: [
       makeDataset('Sensor 1', chartData.s1_current, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_current, COLOR_S2),
@@ -192,7 +192,7 @@ const chartCurrent = new Chart(document.getElementById('chart-current'), {
 const chartPower = new Chart(document.getElementById('chart-power'), {
   type: 'line',
   data: {
-    labels:   chartData.labels,
+    labels: chartData.labels,
     datasets: [
       makeDataset('Sensor 1', chartData.s1_power, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_power, COLOR_S2),
@@ -225,7 +225,7 @@ function formatTimestamp(ts) {
  * @param {'connecting'|'online'|'offline'} state
  */
 function setWsStatus(state) {
-  const dot   = DOM.wsDot;
+  const dot = DOM.wsDot;
   const label = DOM.wsLabel;
   dot.className = 'status-badge__dot';
 
@@ -268,7 +268,7 @@ function updateMetricCards(sensor1, sensor2) {
     for (const field of fields) {
       const val = data[field];
       if (val !== undefined) {
-        dom[field].textContent = val.toFixed(2);
+        dom[field].textContent = val;
         flashCard(dom.cards[field]);
       }
     }
@@ -354,7 +354,7 @@ function addTableRow({ timestamp, device_id, sensor_name, voltage, current, powe
  */
 async function loadInitialHistory() {
   try {
-    const res  = await fetch(`/api/readings?limit=${MAX_CHART_POINTS * 2}`);
+    const res = await fetch(`/api/readings?limit=${MAX_CHART_POINTS * 2}`);
     const json = await res.json();
 
     if (!json.success || !json.data.length) return;
@@ -451,7 +451,7 @@ function onReading(msg) {
   updateMetricCards(sensor1, sensor2);
 
   // Actualizar timestamp e ID de dispositivo en el header
-  DOM.lastTs.textContent      = new Date(timestamp).toLocaleString('es-ES');
+  DOM.lastTs.textContent = new Date(timestamp).toLocaleString('es-ES');
   DOM.deviceLabel.textContent = device_id;
 
   // Agregar punto al gráfico
