@@ -31,6 +31,10 @@
   /* Sensor colors */
   --s1-color: #10d97a;
   --s2-color: #3b82f6;
+  --s3-color: #f59e0b;
+
+  /* Sensor 3 glow */
+  --shadow-glow-amber: 0 0 20px rgba(245,158,11,0.18);
 
   /* Texto */
   --text-primary:   #f0f6ff;
@@ -246,6 +250,12 @@ body {
   border: 1px solid rgba(59,130,246,0.3);
 }
 
+.sensor-section__badge--3 {
+  background: rgba(245,158,11,0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(245,158,11,0.3);
+}
+
 .sensor-section__title {
   font-size: 1rem;
   font-weight: 600;
@@ -308,6 +318,11 @@ body {
 .metric-card__icon--current2 { background: rgba(96,165,250,0.12);  color: #93c5fd; box-shadow: 0 0 12px rgba(96,165,250,0.1); }
 .metric-card__icon--power2   { background: rgba(245,158,11,0.15);  color: var(--accent-amber); box-shadow: 0 0 12px rgba(245,158,11,0.12); }
 .metric-card__icon--energy2  { background: rgba(167,139,250,0.15); color: var(--accent-purple); box-shadow: 0 0 12px rgba(167,139,250,0.12); }
+
+.metric-card__icon--voltage3 { background: rgba(245,158,11,0.15);  color: #fcd34d; box-shadow: 0 0 12px rgba(245,158,11,0.12); }
+.metric-card__icon--current3 { background: rgba(251,191,36,0.12);  color: #fde68a; box-shadow: 0 0 12px rgba(251,191,36,0.1); }
+.metric-card__icon--power3   { background: rgba(234,179,8,0.15);   color: #facc15; box-shadow: 0 0 12px rgba(234,179,8,0.12); }
+.metric-card__icon--energy3  { background: rgba(167,139,250,0.15); color: var(--accent-purple); box-shadow: 0 0 12px rgba(167,139,250,0.12); }
 
 .metric-card__body {
   display: flex;
@@ -402,6 +417,7 @@ body {
 
 .legend-dot--s1 { background: var(--s1-color); box-shadow: 0 0 6px var(--s1-color); }
 .legend-dot--s2 { background: var(--s2-color); box-shadow: 0 0 6px var(--s2-color); }
+.legend-dot--s3 { background: var(--s3-color); box-shadow: 0 0 6px var(--s3-color); }
 
 .chart-card__body {
   position: relative;
@@ -503,6 +519,7 @@ body {
 
 .sensor-tag--1 { background: rgba(16,217,122,0.12); color: var(--accent-green2); border: 1px solid rgba(16,217,122,0.25); }
 .sensor-tag--2 { background: rgba(59,130,246,0.12); color: var(--accent-blue2);  border: 1px solid rgba(59,130,246,0.25); }
+.sensor-tag--3 { background: rgba(245,158,11,0.12); color: #fcd34d;              border: 1px solid rgba(245,158,11,0.25); }
 
 .table-empty td {
   text-align: center;

@@ -10,14 +10,15 @@
  * Schema de la tabla `readings`:
  *   id          INTEGER  Identificador único autoincremental
  *   device_id   TEXT     ID del dispositivo ESP32 (ej: "esp32_01")
- *   timestamp   TEXT     Timestamp ISO 8601 del dispositivo o servidor
- *   sensor_name TEXT     "sensor1" | "sensor2"
+ *   timestamp   TEXT     Timestamp ISO 8601 generado por el SERVIDOR (no el dispositivo)
+ *   sensor_name TEXT     "sensor1" | "sensor2" | "sensor3"
  *   voltage     REAL     Voltaje en Volts (V)
  *   current     REAL     Corriente en Amperes (A)
  *   power       REAL     Potencia en Watts (W)
  *   energy      REAL     Energía acumulada en Wh
  *
- * Nota: Cada mensaje ESP32 genera DOS filas (una por sensor).
+ * Nota: Cada mensaje ESP32 genera TRES filas (una por sensor: sensor1, sensor2, sensor3).
+ * El timestamp siempre proviene del servidor para garantizar consistencia temporal.
  */
 
 const initSqlJs = require('sql.js');
@@ -102,8 +103,8 @@ async function initDatabase() {
  *
  * @param {object} data
  * @param {string} data.device_id
- * @param {string} data.timestamp
- * @param {string} data.sensor_name - "sensor1" | "sensor2"
+ * @param {string} data.timestamp  - Timestamp del SERVIDOR (new Date().toISOString())
+ * @param {string} data.sensor_name - "sensor1" | "sensor2" | "sensor3"
  * @param {number} data.voltage
  * @param {number} data.current
  * @param {number} data.power

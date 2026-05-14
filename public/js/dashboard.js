@@ -42,6 +42,9 @@ const chartData = {
   s2_voltage: [],
   s2_current: [],
   s2_power: [],
+  s3_voltage: [],
+  s3_current: [],
+  s3_power: [],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -79,6 +82,18 @@ const DOM = {
       energy: document.getElementById('s2-energy-card'),
     },
   },
+  s3: {
+    voltage: document.getElementById('s3-voltage'),
+    current: document.getElementById('s3-current'),
+    power: document.getElementById('s3-power'),
+    energy: document.getElementById('s3-energy'),
+    cards: {
+      voltage: document.getElementById('s3-voltage-card'),
+      current: document.getElementById('s3-current-card'),
+      power: document.getElementById('s3-power-card'),
+      energy: document.getElementById('s3-energy-card'),
+    },
+  },
 
   tableBody: document.getElementById('table-body'),
   historyCount: document.getElementById('history-count'),
@@ -91,6 +106,7 @@ const DOM = {
 /** Colores */
 const COLOR_S1 = '#10d97a';
 const COLOR_S2 = '#3b82f6';
+const COLOR_S3 = '#f59e0b';
 
 /**
  * makeChartOptions — Genera las opciones comunes para todos los gráficos.
@@ -172,6 +188,7 @@ const chartVoltage = new Chart(document.getElementById('chart-voltage'), {
     datasets: [
       makeDataset('Sensor 1', chartData.s1_voltage, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_voltage, COLOR_S2),
+      makeDataset('Sensor 3', chartData.s3_voltage, COLOR_S3),
     ],
   },
   options: makeChartOptions('V'),
@@ -184,6 +201,7 @@ const chartCurrent = new Chart(document.getElementById('chart-current'), {
     datasets: [
       makeDataset('Sensor 1', chartData.s1_current, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_current, COLOR_S2),
+      makeDataset('Sensor 3', chartData.s3_current, COLOR_S3),
     ],
   },
   options: makeChartOptions('A'),
@@ -196,6 +214,7 @@ const chartPower = new Chart(document.getElementById('chart-power'), {
     datasets: [
       makeDataset('Sensor 1', chartData.s1_power, COLOR_S1),
       makeDataset('Sensor 2', chartData.s2_power, COLOR_S2),
+      makeDataset('Sensor 3', chartData.s3_power, COLOR_S3),
     ],
   },
   options: makeChartOptions('W'),
@@ -252,16 +271,18 @@ function flashCard(card) {
 }
 
 /**
- * updateMetricCards — Actualiza los valores de las tarjetas para ambos sensores.
+ * updateMetricCards — Actualiza los valores de las tarjetas para los tres sensores.
  *
  * @param {object} sensor1 - { voltage, current, power, energy }
  * @param {object} sensor2 - { voltage, current, power, energy }
+ * @param {object} sensor3 - { voltage, current, power, energy }
  */
-function updateMetricCards(sensor1, sensor2) {
+function updateMetricCards(sensor1, sensor2, sensor3) {
   const fields = ['voltage', 'current', 'power', 'energy'];
   const sensors = [
     { data: sensor1, dom: DOM.s1 },
     { data: sensor2, dom: DOM.s2 },
+    { data: sensor3, dom: DOM.s3 },
   ];
 
   for (const { data, dom } of sensors) {
@@ -282,8 +303,9 @@ function updateMetricCards(sensor1, sensor2) {
  * @param {string} label    - Etiqueta del eje X (tiempo formateado)
  * @param {object} sensor1  - Datos del sensor 1
  * @param {object} sensor2  - Datos del sensor 2
+ * @param {object} sensor3  - Datos del sensor 3
  */
-function pushChartPoint(label, sensor1, sensor2) {
+function pushChartPoint(label, sensor1, sensor2, sensor3) {
   chartData.labels.push(label);
   chartData.s1_voltage.push(sensor1.voltage);
   chartData.s1_current.push(sensor1.current);
@@ -291,6 +313,9 @@ function pushChartPoint(label, sensor1, sensor2) {
   chartData.s2_voltage.push(sensor2.voltage);
   chartData.s2_current.push(sensor2.current);
   chartData.s2_power.push(sensor2.power);
+  chartData.s3_voltage.push(sensor3.voltage);
+  chartData.s3_current.push(sensor3.current);
+  chartData.s3_power.push(sensor3.power);
 
   // Mantener el buffer dentro del límite
   if (chartData.labels.length > MAX_CHART_POINTS) {
@@ -301,6 +326,9 @@ function pushChartPoint(label, sensor1, sensor2) {
     chartData.s2_voltage.shift();
     chartData.s2_current.shift();
     chartData.s2_power.shift();
+    chartData.s3_voltage.shift();
+    chartData.s3_current.shift();
+    chartData.s3_power.shift();
   }
 
   chartVoltage.update();
@@ -322,7 +350,7 @@ function addTableRow({ timestamp, device_id, sensor_name, voltage, current, powe
   const tr = document.createElement('tr');
   tr.className = 'row-new';
 
-  const sensorNum = sensor_name === 'sensor1' ? '1' : '2';
+  const sensorNum = sensor_name === 'sensor1' ? '1' : sensor_name === 'sensor2' ? '2' : '3';
   tr.innerHTML = `
     <td>${new Date(timestamp).toLocaleString('es-ES')}</td>
     <td>${device_id}</td>
@@ -363,17 +391,17 @@ async function loadInitialHistory() {
     // Para los gráficos necesitamos orden ASC, así que invertimos.
     const rows = [...json.data].reverse();
 
-    // Agrupar por timestamp para reconstruir pares sensor1/sensor2
+    // Agrupar por timestamp para reconstruir tríos sensor1/sensor2/sensor3
     const grouped = new Map();
     for (const row of rows) {
       if (!grouped.has(row.timestamp)) grouped.set(row.timestamp, {});
       grouped.get(row.timestamp)[row.sensor_name] = row;
     }
 
-    // Alimentar gráficos (solo pares completos)
+    // Alimentar gráficos (solo tríos completos)
     for (const [ts, sensors] of grouped) {
-      if (sensors.sensor1 && sensors.sensor2) {
-        pushChartPoint(formatTimestamp(ts), sensors.sensor1, sensors.sensor2);
+      if (sensors.sensor1 && sensors.sensor2 && sensors.sensor3) {
+        pushChartPoint(formatTimestamp(ts), sensors.sensor1, sensors.sensor2, sensors.sensor3);
       }
     }
 
@@ -442,22 +470,23 @@ function connectWebSocket() {
  * onReading — Procesa un evento 'reading' recibido via WebSocket.
  * Actualiza las tarjetas, los gráficos y la tabla.
  *
- * @param {object} msg - Evento completo: { device_id, timestamp, sensor1, sensor2 }
+ * @param {object} msg - Evento completo: { device_id, timestamp, sensor1, sensor2, sensor3 }
  */
 function onReading(msg) {
-  const { device_id, timestamp, sensor1, sensor2 } = msg;
+  const { device_id, timestamp, sensor1, sensor2, sensor3 } = msg;
 
   // Actualizar tarjetas de métricas
-  updateMetricCards(sensor1, sensor2);
+  updateMetricCards(sensor1, sensor2, sensor3);
 
   // Actualizar timestamp e ID de dispositivo en el header
   DOM.lastTs.textContent = new Date(timestamp).toLocaleString('es-ES');
   DOM.deviceLabel.textContent = device_id;
 
   // Agregar punto al gráfico
-  pushChartPoint(formatTimestamp(timestamp), sensor1, sensor2);
+  pushChartPoint(formatTimestamp(timestamp), sensor1, sensor2, sensor3);
 
-  // Agregar filas a la tabla (sensor2 primero para que sensor1 quede arriba)
+  // Agregar filas a la tabla (sensor3 primero → sensor1 quedará arriba tras prepend)
+  addTableRow({ timestamp, device_id, sensor_name: 'sensor3', ...sensor3 });
   addTableRow({ timestamp, device_id, sensor_name: 'sensor2', ...sensor2 });
   addTableRow({ timestamp, device_id, sensor_name: 'sensor1', ...sensor1 });
 }

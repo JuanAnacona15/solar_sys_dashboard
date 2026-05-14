@@ -17,9 +17,10 @@
  * Formato esperado del ESP32:
  * {
  *   "device_id": "esp32_01",
- *   "timestamp": "2026-03-25T14:32:45Z",   ← opcional (se usa server_ts si falta)
+ *   "timestamp": "2026-03-25T14:32:45Z",   ← ignorado para la BD; se usa siempre server_timestamp
  *   "sensor1": { "voltage": 12.45, "current": 3.52, "power": 43.8, "energy": 1245.6 },
- *   "sensor2": { "voltage": 18.10, "current": 2.90, "power": 52.4, "energy": 980.3  }
+ *   "sensor2": { "voltage": 18.10, "current": 2.90, "power": 52.4, "energy": 980.3  },
+ *   "sensor3": { "voltage": 5.00,  "current": 0.30, "power": 1.50, "energy": 45.2   }
  * }
  */
 
@@ -48,7 +49,7 @@ const SENSOR_FIELDS = ['voltage', 'current', 'power', 'energy'];
 function validatePayload(payload) {
   if (!payload.device_id) return { valid: false, error: 'Falta device_id' };
 
-  for (const sensor of ['sensor1', 'sensor2']) {
+  for (const sensor of ['sensor1', 'sensor2', 'sensor3']) {
     if (!payload[sensor]) return { valid: false, error: `Falta ${sensor}` };
     for (const field of SENSOR_FIELDS) {
       if (payload[sensor][field] === undefined) {
@@ -202,14 +203,14 @@ function createWsServer(httpServer) {
       }
 
       // ── PROCESAR DATOS (Timestamps, DB, Broadcast) ──
+      // Siempre se usa el timestamp del servidor para la BD (no el del dispositivo)
       const serverTs = new Date().toISOString();
-      const deviceTs = payload.timestamp || serverTs;
 
       try {
-        for (const sensorKey of ['sensor1', 'sensor2']) {
+        for (const sensorKey of ['sensor1', 'sensor2', 'sensor3']) {
           insertReading({
             device_id: payload.device_id,
-            timestamp: deviceTs,
+            timestamp: serverTs,          // ← timestamp del servidor, no del ESP32
             sensor_name: sensorKey,
             voltage: payload[sensorKey].voltage,
             current: payload[sensorKey].current,
@@ -226,10 +227,10 @@ function createWsServer(httpServer) {
       const event = {
         type: 'reading',
         device_id: payload.device_id,
-        timestamp: deviceTs,
-        server_timestamp: serverTs,
+        timestamp: serverTs,             // ← timestamp del servidor
         sensor1: payload.sensor1,
         sensor2: payload.sensor2,
+        sensor3: payload.sensor3,
       };
       broadcastToDashboards(event);
 
